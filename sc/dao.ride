@@ -1,0 +1,131 @@
+{-# STDLIB_VERSION 3 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let optionsAmount = 2  # Serum Swap, Swop.fi
+let systemToken = unit # base58'newtoken'
+let interval = 60*24*7 # in minutes (one week)
+
+func tryGetInteger(key: String) = {
+    let val = match getInteger(this, key) {
+        case b:Int => b
+        case _ => 0
+    }
+    val
+}
+
+func tryGetString(key: String) = {
+    let val = match getString(this, key) {
+        case b:String => b
+        case _ => ""
+    }
+    val
+}
+
+func isOwner(address: Address) = {
+  address == this
+}
+
+func isOracle(address: Address) = {
+  true
+}
+
+@Callable(i)
+func deposit() = {
+  let pmt = extract(i.payment)
+  if (isDefined(pmt.assetId)) then throw("can deposit waves only at the moment")
+  else {
+      let currentKey = toBase58String(i.caller.bytes)
+      let currentAmount = match getInteger(this, currentKey) {
+          case a:Int => a
+          case _ => 0
+      }
+      let newAmount = currentAmount + pmt.amount
+      WriteSet([DataEntry(currentKey, newAmount)])
+  }
+}
+
+@Callable(i)
+func withdraw(amount: Int) = {
+  let currentKey = toBase58String(i.caller.bytes)
+  let currentAmount = match getInteger(this, currentKey) {
+      case a:Int => a
+      case _ => 0
+  }
+  let newAmount = currentAmount - amount
+  if (amount < 0)
+          then throw("can't withdraw negative amount")
+  else if (newAmount < 0)
+          then throw("not enough balance")
+          else ScriptResult(
+                  WriteSet([DataEntry(currentKey, newAmount)]),
+                  TransferSet([ScriptTransfer(i.caller, amount, unit)])
+              )
+  }
+
+@Callable(i)
+func voteOnDistribution(o1: Int, o2: Int) = {
+  if (!((o1 == -1 || o2 == 1) && (o2 == -1 || o2 == 1))) then {
+    throw("vote values need to equal 1 or -1")
+  } else {
+    let intervalsAmount = tryGetInteger("intervals_amount")
+    DataEntry("interval_" + (intervalsAmount+1).toString() + "_vote_" + i.caller.toString(), o1)
+  }
+}
+
+@Callable(i)
+func runInterval() = {
+  if (!isOwner(i.caller)) then {
+    throw("DAO owner allowed only")
+  } else {
+    let intervalsAmount = tryGetInteger("intervals_amount")
+    WriteSet([
+      DataEntry("interval_amount", intervalsAmount+1),
+      DataEntry("interval_" + intervalsAmount.toString() + "_started", height)
+    ])
+  }
+}
+
+@Callable(i)
+func finishInterval() = {
+  let intervalsAmount = tryGetInteger("intervals_amount")
+  if (tryGetInteger("interval_" + intervalsAmount.toString() + "_started") + interval < height) then {
+    throw("not possible to withdrow yet")
+  } else {
+    {
+      let roiRatio = tryGetInteger("interval_" + intervalsAmount.toString() + "_result")
+      if (roiRatio == 0) then {
+        throw("oracle's data needs to be provided first")
+      } else {
+        WriteSet([
+          DataEntry("interval_" + intervalsAmount.toString() + "_finished", height)
+        ])
+      }
+    }
+  }
+}
+
+@Callable(i)
+func requestProfit(interval: Int) = {
+  if (tryGetInteger("interval_" + interval + "_finished") == 0) then {
+    throw("interval not finished yet")
+  } else {
+    let userVote = tryGetInteger("interval_" + interval.toString() + "_vote_" + i.caller.toString())
+    if (userVote == 0) then {
+      throw("you haven't provided expertise for this interval")
+    } else {
+      let intervalResult = tryGetInteger("interval_" + interval + "_result")
+      if (userVote != intervalResult) then {
+        throw("your expertise wasn't helpful for this interval")
+      } else {
+        ScriptResult(
+          WriteSet([DataEntry("interval_" + interval.toString() + "_reward_" + i.caller.toString()), true]),
+          TransferSet([ScriptTransfer(i.caller, systemToken, 1)])
+        )
+      }
+    }
+  }
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
