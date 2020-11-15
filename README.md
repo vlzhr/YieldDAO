@@ -6,6 +6,8 @@ Cross-chain DAO for collaborative investments driven by experts community. First
 
 Crowd is wisd. Combining the knowledge the YieldDAO community will make the most efficient decisions and split financial resources between different DeFi projects.
 
+Pitch: https://youtu.be/FVsIRAfXr8I
+
 Test UI: https://waves-dapp.com/3N3TABGgB3pzJZjBLTAt8m6t5iAmFdZ2qGY
 
 ![](https://server.vlzhr.top/hosted/8790057lanation.png)
