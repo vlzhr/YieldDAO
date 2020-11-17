@@ -11,3 +11,7 @@ Pitch: https://youtu.be/FVsIRAfXr8I
 Test UI: https://waves-dapp.com/3N3TABGgB3pzJZjBLTAt8m6t5iAmFdZ2qGY
 
 <img src="https://server.vlzhr.top/hosted/8790057lanation.png" width="400px">
+
+**Community**: puts USDC tokens to a smart contract and receives ROI every time interval (1 week).
+
+**Experts**: vote on the best investment opportunity using system token every week and receives payback depending on the ROI of his proposal when the week is finished.
